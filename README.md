@@ -161,9 +161,6 @@ cp services/metrics-collector/.env.example services/metrics-collector/.env
 cp services/api-gateway/.env.example services/api-gateway/.env
 
 # Uruchomienie wszystkich serwisów
-make dev
-
-# Alternatywnie bez Make
 docker-compose up -d
 ```
 
