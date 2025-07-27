@@ -1,0 +1,78 @@
+# CloudWatch Pro - AWS Terraform Variables Example
+# Copy this file to terraform.tfvars and update the values
+
+# Project Configuration
+project_name = "cloudwatch-pro"
+environment  = "production"
+aws_region   = "us-west-2"
+
+# VPC Configuration
+vpc_cidr = "10.0.0.0/16"
+
+# EKS Configuration
+kubernetes_version = "1.28"
+
+node_groups = {
+  general = {
+    instance_types = ["t3.medium"]
+    scaling_config = {
+      desired_size = 3
+      max_size     = 10
+      min_size     = 1
+    }
+    disk_size     = 20
+    capacity_type = "ON_DEMAND"
+  }
+  spot = {
+    instance_types = ["t3.medium", "t3.large", "t3a.medium", "t3a.large"]
+    scaling_config = {
+      desired_size = 2
+      max_size     = 20
+      min_size     = 0
+    }
+    disk_size     = 20
+    capacity_type = "SPOT"
+  }
+}
+
+# Database Configuration
+rds_instance_class    = "db.t3.micro"
+rds_allocated_storage = 20
+database_name         = "cloudwatch_users"
+database_username     = "cloudwatch"
+database_password     = "your-secure-database-password-here"
+
+# Redis Configuration
+redis_node_type         = "cache.t3.micro"
+redis_num_cache_nodes   = 1
+redis_parameter_group   = "default.redis7"
+
+# Domain and SSL
+domain_name         = "cloudwatch-pro.example.com"
+ssl_certificate_arn = "arn:aws:acm:us-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+
+# Monitoring
+sns_topic_arn = "arn:aws:sns:us-west-2:123456789012:cloudwatch-pro-alerts"
+
+# Application
+image_tag = "latest"
+
+# Cost Optimization
+enable_spot_instances      = true
+enable_scheduled_scaling   = true
+
+# Backup Configuration
+backup_retention_days         = 7
+enable_point_in_time_recovery = true
+
+# Security
+enable_encryption    = true
+allowed_cidr_blocks  = ["0.0.0.0/0"]  # Restrict this in production
+
+# High Availability
+enable_multi_az = true
+
+# Monitoring and Logging
+enable_container_insights = true
+log_retention_days       = 30
+

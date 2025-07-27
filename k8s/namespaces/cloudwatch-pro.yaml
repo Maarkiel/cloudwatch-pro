@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudwatch-pro
+  labels:
+    name: cloudwatch-pro
+    environment: production
+    app: cloudwatch-pro
+  annotations:
+    description: "CloudWatch Pro - Real-time Infrastructure Monitoring Platform"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudwatch-pro-monitoring
+  labels:
+    name: cloudwatch-pro-monitoring
+    environment: production
+    app: cloudwatch-pro
+  annotations:
+    description: "CloudWatch Pro - Monitoring and Observability Stack"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: cloudwatch-pro-quota
+  namespace: cloudwatch-pro
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "10"
+    services: "20"
+    secrets: "10"
+    configmaps: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cloudwatch-pro-limits
+  namespace: cloudwatch-pro
+spec:
+  limits:
+  - default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+

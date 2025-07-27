@@ -1,0 +1,261 @@
+# CloudWatch Pro - Docker Compose Configuration
+# Konfiguracja dla lokalnego developmentu
+
+version: '3.8'
+
+services:
+  # Bazy danych
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloudwatch-postgres
+    environment:
+      POSTGRES_DB: cloudwatch_users
+      POSTGRES_USER: cloudwatch
+      POSTGRES_PASSWORD: cloudwatch123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudwatch"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloudwatch-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: cloudwatch-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: cloudwatch
+      DOCKER_INFLUXDB_INIT_PASSWORD: cloudwatch123
+      DOCKER_INFLUXDB_INIT_ORG: cloudwatch-pro
+      DOCKER_INFLUXDB_INIT_BUCKET: metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: cloudwatch-super-secret-token
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: cloudwatch-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  # Message Queue
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: cloudwatch-kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: cloudwatch-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - cloudwatch-network
+
+  # Mikrousługi
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: cloudwatch-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - USER_SERVICE_URL=http://user-service:8001
+      - METRICS_SERVICE_URL=http://metrics-collector:8002
+    depends_on:
+      - redis
+      - user-service
+      - metrics-collector
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: cloudwatch-user-service
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://cloudwatch:cloudwatch123@postgres:5432/cloudwatch_users
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=your-super-secret-key-for-development-only
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  metrics-collector:
+    build:
+      context: ./services/metrics-collector
+      dockerfile: Dockerfile
+    container_name: cloudwatch-metrics-collector
+    ports:
+      - "8002:8002"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=cloudwatch-super-secret-token
+      - INFLUXDB_ORG=cloudwatch-pro
+      - INFLUXDB_BUCKET=metrics
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - influxdb
+      - redis
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  # Frontend Dashboard
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: cloudwatch-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cloudwatch-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - cloudwatch-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cloudwatch-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - cloudwatch-network
+
+# Volumes
+volumes:
+  postgres_data:
+  redis_data:
+  influxdb_data:
+  elasticsearch_data:
+  zookeeper_data:
+  prometheus_data:
+  grafana_data:
+
+# Networks
+networks:
+  cloudwatch-network:
+    driver: bridge
+
