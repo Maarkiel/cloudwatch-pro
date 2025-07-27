@@ -251,3 +251,7 @@ if __name__ == "__main__":
         reload=True
     )
 
+
+@app.get("/health") 
+async def health():
+    return {"status": "healthy"}

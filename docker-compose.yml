@@ -1,8 +1,5 @@
 # CloudWatch Pro - Docker Compose Configuration
 # Konfiguracja dla lokalnego developmentu
-
-version: '3.8'
-
 services:
   # Bazy danych
   postgres:
@@ -152,7 +149,7 @@ services:
       - DATABASE_URL=postgresql://cloudwatch:cloudwatch123@postgres:5432/cloudwatch_users
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - SECRET_KEY=your-super-secret-key-for-development-only
+      - SECRET_KEY=p95XE1Pd0gDTdgufD7sHhOe6BuPJCV9d3bjpAdwzCl8
     depends_on:
       - postgres
       - redis
@@ -185,6 +182,69 @@ services:
       - kafka
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  alert-manager:
+    build:
+      context: ./services/alert-manager
+      dockerfile: Dockerfile
+    container_name: cloudwatch-alert-manager
+    ports:
+      - "8003:8003"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  cost-analyzer:
+    build:
+      context: ./services/cost-analyzer
+      dockerfile: Dockerfile
+    container_name: cloudwatch-cost-analyzer
+    ports:
+      - "8004:8004"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudwatch-network
+
+  ml-predictor:
+    build:
+      context: ./services/ml-predictor
+      dockerfile: Dockerfile
+    container_name: cloudwatch-ml-predictor
+    ports:
+      - "8005:8005"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 30s
       timeout: 10s
       retries: 3

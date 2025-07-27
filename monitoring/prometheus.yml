@@ -1,0 +1,15 @@
+echo "global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+  
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8001']" > monitoring/prometheus.yml
