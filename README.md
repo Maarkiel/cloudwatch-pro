@@ -161,9 +161,6 @@ cp services/metrics-collector/.env.example services/metrics-collector/.env
 cp services/api-gateway/.env.example services/api-gateway/.env
 
 # Uruchomienie wszystkich serwisów
-make dev
-
-# Alternatywnie bez Make
 docker-compose up -d
 ```
 
@@ -389,7 +386,6 @@ Kubernetes cluster automatycznie dodaje/usuwa węzły na podstawie zapotrzebowan
 
 *Koszty mogą się różnić w zależności od wykorzystania i konfiguracji.
 
-## 🤝 Współpraca
 
 ### Struktura Projektu
 
