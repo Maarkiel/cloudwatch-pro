@@ -386,7 +386,6 @@ Kubernetes cluster automatycznie dodaje/usuwa węzły na podstawie zapotrzebowan
 
 *Koszty mogą się różnić w zależności od wykorzystania i konfiguracji.
 
-## 🤝 Współpraca
 
 ### Struktura Projektu
 
