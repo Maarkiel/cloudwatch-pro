@@ -322,4 +322,3 @@ subjects:
 - kind: ServiceAccount
   name: prometheus
   namespace: cloudwatch-pro-monitoring
-

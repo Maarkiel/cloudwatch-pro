@@ -139,4 +139,3 @@ if __name__ == "__main__":
         print(f"✗ API Gateway: {e}")
     
     print("Test run completed!")
-
